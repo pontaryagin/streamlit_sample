@@ -13,16 +13,11 @@ import pandas as pd
 from streamlit_server_state import server_state, server_state_lock
 import streamlit_authenticator as stauth
 import yaml
-import extra_streamlit_components as stx
 import numpy as np
 
-from streamlit_utility import initialize_page
+from streamlit_utility import initialize_page, get_manager
 
 initialize_page()
-
-@st.cache_resource(experimental_allow_widgets=True)
-def get_manager():
-    return stx.CookieManager()
 
 cookie_manager = get_manager()
 
@@ -165,13 +160,24 @@ def check_diff_df(df_bef, df_aft)->list[dict]:
 
 st.subheader("Action list")
 df = pd.DataFrame(task.actions, index=range(1, len(task.actions)+1))
-def add_color(val, color):
-    return f"background-color: {color}" if val == username else ""
+def add_color(val, condtion, color):
+    return f"background-color: {color}" if condtion(val) else ""
 df["assigned_user"] = np.vectorize(format_fullname)(df["assigned_user"])
-df["assigned_user"] = pd.Categorical(df["assigned_user"], categories=reverse_formated_fullnames.keys())
+# df["assigned_user"] = pd.Categorical(df["assigned_user"], categories=reverse_formated_fullnames.keys())
 df_styled = (df[["name", "status", "assigned_user", "memo"]]
-            .style.map(add_color, color="linen"))
-df_new = st.data_editor(df_styled, disabled=["fullname", "name", "status"], use_container_width=True)
+            .style.map(add_color, color="LightGray", subset=["status"], condtion=lambda x: x in ("Done", "Skipped"))
+            .map(add_color, color="PaleGreen", subset=["status"], condtion=lambda x: x == "InProgress")
+            )
+assigned_user_column_config = st.column_config.SelectboxColumn(
+            "Assigned User",
+            help="Assigned user for the task",
+            options=reverse_formated_fullnames.keys(),
+            required=True,)
+column_config = {
+    "assigned_user": assigned_user_column_config,
+    "memo": st.column_config.Column("Memo",help="Memo for the task",),
+}
+df_new = st.data_editor(df_styled, disabled=["fullname", "name", "status"], column_config= column_config, use_container_width=True)
 
 diffs = check_diff_df(df, df_new)
 if diffs:
