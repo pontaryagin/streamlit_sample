@@ -4,20 +4,21 @@ from typing import Literal
 import streamlit as st
 import time
 import asyncio
-import numpy as np
+import numpy as npm
 
 from sqlalchemy import create_engine, Column, Integer, String
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 import pandas as pd
 from streamlit_server_state import server_state, server_state_lock
-from streamlit_utility import get_remote_ip
 import streamlit_authenticator as stauth
 import yaml
 import extra_streamlit_components as stx
+import numpy as np
 
-st.set_page_config(page_title="Page Title", layout="wide")
+st.set_page_config(page_title="Workflow generator", layout="wide", initial_sidebar_state="collapsed")
 st.markdown("""
+    <h1>Workflow generator</h1>
     <style>
         .reportview-container {
             margin-top: -2em;
@@ -35,8 +36,8 @@ def get_manager():
 
 cookie_manager = get_manager()
 
-with st.sidebar.columns(2)[1]:
-    if st.button("Logout", ):
+with st.sidebar:
+    if st.button("Logout"):
         cookie_manager.delete("username")
 
 # Create the database engine
@@ -69,10 +70,18 @@ if username is None:
     form_username()
     exit()
 
+
+def format_fullname(username):
+    print(f"{username=}")
+    fullname = fullnames[username]
+    return f"{fullname} ({username})"
+
 fullnames = {
     "ponta": "ponta tanuki",
     "ponta2": "ponta2 tanuki",
 }
+
+reverse_formated_fullnames = {format_fullname(k): k for k, v in fullnames.items()}
 
 Status = Literal["ToDo", "InProgress", "Done", "Skipped"]
 
@@ -84,7 +93,7 @@ class ActionNode:
     memo: str
 
 @dataclasses.dataclass
-class TaskUnit:
+class Workflow:
     actions : list[ActionNode]
 
     def save(self):
@@ -117,7 +126,7 @@ class TaskUnit:
         # send message to self.actions[pro].assigned_user
         self.save()
 
-base_task = TaskUnit(actions=[
+base_task = Workflow(actions=[
     ActionNode(assigned_user="ponta2", name="test", status= "Done", memo=""),
     ActionNode(assigned_user="ponta", name="test2", status= "InProgress", memo="start"),
     ActionNode(assigned_user="ponta", name="test3", status= "ToDo", memo="start"),
@@ -126,52 +135,70 @@ base_task = TaskUnit(actions=[
 if "task" not in st.session_state:
     st.session_state["task"] = base_task
 
-task = st.session_state["task"]
+task: Workflow = st.session_state["task"]
 
 action_in_progress = task.get_action_in_progress()
 text_area_memo = st.text_area("Memo", 
                     value=action_in_progress.memo if action_in_progress else "")
 if action_in_progress:
     if username == action_in_progress.assigned_user:
-        col1, col2 = st.columns(2)
+        *_, col1, col2, col3 = st.columns(5)
         with col1:
-            btn_done = st.button("Mark as Done")
+            btn_done = st.button("Done")
             if btn_done:
                 task.update_state("Done", text_area_memo)
         with col2:
             btn_skip = st.button("Skip")
             if btn_skip:
                 task.update_state("Skipped", text_area_memo)
+        with col3:
+            btn_update = st.button("Update")
+            if btn_update and "task_diffs" in st.session_state:
+                diffs = st.session_state.pop("task_diffs")
+                for diff in diffs:
+                    value = diff["value"][1]
+                    if diff["key"] == "assigned_user":
+                        value = reverse_formated_fullnames[value]
+                    task.actions[diff["index"]-1].__setattr__(diff["key"], value)
 else:
     btn_start = st.button("Start the task")
     if btn_start:
         task.start()
 
-def on_change(x):
-    print(x)
+def check_diff_df(df_bef, df_aft)->list[dict]:
+    diffs = []
+    for i, (bef, aft) in enumerate(zip(df_bef.to_dict("records"), df_aft.to_dict("records"))):
+        for key in bef.keys():
+            if bef[key] != aft[key]:
+                diff = {"index": i+1, "key": key, "value": (bef[key], aft[key]),
+                        "values_bef": bef, "values_aft": aft}
+                diffs.append(diff)
+    return diffs
 
 st.subheader("Action list")
 df = pd.DataFrame(task.actions, index=range(1, len(task.actions)+1))
-df.style.applymap(lambda x: "background-color: yellow" if x== username else "", subset=["assigned_user"])
-df_new = st.data_editor(df, on_change=on_change, disabled=["assigned_user", "name", "status"], use_container_width=True)
+def add_color(val, color):
+    print(val)
+    return f"background-color: {color}" if val == username else ""
+print(f"1: {df=}")
+df["assigned_user"] = np.vectorize(format_fullname)(df["assigned_user"])
+print(f"2: {df=}")
+df["assigned_user"] = pd.Categorical(df["assigned_user"], categories=reverse_formated_fullnames.keys())
+df_styled = (df[["name", "status", "assigned_user", "memo"]]
+            .style.map(add_color, color="linen"))
+df_new = st.data_editor(df_styled, disabled=["fullname", "name", "status"], use_container_width=True)
 
-st.dataframe(df_new, use_container_width=True)
-
-# bt = st.button("Click me")
-# if bt:
-#     st.session_state["abc"] = st.session_state.get("abc", 0) + 1
-
-# async def do(tab):
-#     with tab:
-#         st.write("This is the tab ")
-#         # print(str(tab))
-#         for i in range(10):
-#             await asyncio.sleep(0.1)    
-#             st.write(i)
-            
-
-# async def main():
-#     await asyncio.gather(do(tab1), do(tab2), do(tab3))
-
-# asyncio.run(main())
-    
+diffs = check_diff_df(df, df_new)
+if diffs:
+    output = ("You're updating the following items.  \n"
+             +"Please press **Update** button if this is correct.\n")
+    is_ok = True
+    for diff in diffs:
+        if diff["key"] not in ("assigned_user", "memo"):
+            is_ok = False
+            ouput = "You only allow to update assigned_user or memo\n"
+            break
+        output += f"- [Line {diff['index']}] `{diff['key']}`: `{diff['value'][0]}`  ⇒  `{diff['value'][1]}`\n"
+    st.warning(output)
+    if is_ok:
+        st.session_state["task_diffs"] = diffs
