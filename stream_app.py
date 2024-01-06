@@ -17,13 +17,9 @@ import numpy as np
 
 from streamlit_utility import initialize_page, get_manager
 
-initialize_page()
+initialize_page() # must be at the top of every page
 
 cookie_manager = get_manager()
-
-with st.sidebar:
-    if st.button("Logout"):
-        cookie_manager.delete("username")
 
 # Create the database engine
 engine = create_engine('sqlite:///db.sqlite3')
@@ -43,17 +39,14 @@ class User(Base):
 def form_username():
     username = st.text_input("Enter your username")
     if username:
-        st.session_state["username"] = username
         cookie_manager.set("username", username)
-        while cookie_manager.get("username") is None:
-            time.sleep(0.1)
+        # cookie_manager.get_all() # somehow this is needed to make the cookie deletion work
 
 username = cookie_manager.get("username")
 
 if username is None:
     form_username()
     exit()
-
 
 def format_fullname(username):
     fullname = fullnames[username]
@@ -157,7 +150,6 @@ def check_diff_df(df_bef, df_aft)->list[dict]:
                         "values_bef": bef, "values_aft": aft}
                 diffs.append(diff)
     return diffs
-
 st.subheader("Action list")
 df = pd.DataFrame(task.actions, index=range(1, len(task.actions)+1))
 def add_color(val, condtion, color):
