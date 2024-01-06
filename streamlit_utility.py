@@ -24,6 +24,15 @@ def get_remote_ip() -> str|None:
 def get_manager():
     return stx.CookieManager()
 
+def form_username():
+    cookie_manager = get_manager()
+    username = cookie_manager.get("username")
+    if username is None:
+        username = st.text_input("Enter your username")
+        if username:
+            cookie_manager.set("username", username)
+        exit()
+
 def initialize_page():
     st.set_page_config(page_title="Workflow generator", layout="wide", initial_sidebar_state="collapsed")
     st.markdown("""
@@ -42,3 +51,4 @@ def initialize_page():
             cookie_manager = get_manager()
             cookie_manager.delete("username")
             cookie_manager.get_all()  # somehow this is needed to make the cookie deletion work
+    form_username()

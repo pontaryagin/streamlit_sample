@@ -20,6 +20,7 @@ from streamlit_utility import initialize_page, get_manager
 initialize_page() # must be at the top of every page
 
 cookie_manager = get_manager()
+username:str = cookie_manager.get("username")
 
 # Create the database engine
 engine = create_engine('sqlite:///db.sqlite3')
@@ -36,17 +37,6 @@ class User(Base):
     name = Column(String, primary_key=True)
     fullname = Column(String)
 
-def form_username():
-    username = st.text_input("Enter your username")
-    if username:
-        cookie_manager.set("username", username)
-        # cookie_manager.get_all() # somehow this is needed to make the cookie deletion work
-
-username = cookie_manager.get("username")
-
-if username is None:
-    form_username()
-    exit()
 
 def format_fullname(username):
     fullname = fullnames[username]
