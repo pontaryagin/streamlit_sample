@@ -16,19 +16,9 @@ import yaml
 import extra_streamlit_components as stx
 import numpy as np
 
-st.set_page_config(page_title="Workflow generator", layout="wide", initial_sidebar_state="collapsed")
-st.markdown("""
-    <h1>Workflow generator</h1>
-    <style>
-        .reportview-container {
-            margin-top: -2em;
-        }
-        #MainMenu {visibility: hidden;}
-        .stDeployButton {display:none;}
-        footer {visibility: hidden;}
-        #stDecoration {display:none;}
-    </style>
-""", unsafe_allow_html=True)
+from streamlit_utility import initialize_page
+
+initialize_page()
 
 @st.cache_resource(experimental_allow_widgets=True)
 def get_manager():
@@ -59,7 +49,6 @@ def form_username():
     username = st.text_input("Enter your username")
     if username:
         st.session_state["username"] = username
-        print(f"username: {username}")
         cookie_manager.set("username", username)
         while cookie_manager.get("username") is None:
             time.sleep(0.1)
@@ -72,7 +61,6 @@ if username is None:
 
 
 def format_fullname(username):
-    print(f"{username=}")
     fullname = fullnames[username]
     return f"{fullname} ({username})"
 
@@ -178,11 +166,8 @@ def check_diff_df(df_bef, df_aft)->list[dict]:
 st.subheader("Action list")
 df = pd.DataFrame(task.actions, index=range(1, len(task.actions)+1))
 def add_color(val, color):
-    print(val)
     return f"background-color: {color}" if val == username else ""
-print(f"1: {df=}")
 df["assigned_user"] = np.vectorize(format_fullname)(df["assigned_user"])
-print(f"2: {df=}")
 df["assigned_user"] = pd.Categorical(df["assigned_user"], categories=reverse_formated_fullnames.keys())
 df_styled = (df[["name", "status", "assigned_user", "memo"]]
             .style.map(add_color, color="linen"))

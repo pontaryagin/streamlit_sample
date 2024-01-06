@@ -16,3 +16,19 @@ def get_remote_ip() -> str|None:
     except Exception as e:
         return None
     return session_info.request.remote_ip #type: ignore
+
+def initialize_page():
+    st.set_page_config(page_title="Workflow generator", layout="wide", initial_sidebar_state="collapsed")
+    st.markdown("""
+        <h1>Workflow generator</h1>
+        <style>
+            .reportview-container {
+                margin-top: -2em;
+            }
+            #MainMenu {visibility: hidden;}
+            .stDeployButton {display:none;}
+            footer {visibility: hidden;}
+            #stDecoration {display:none;}
+        </style>
+    """, unsafe_allow_html=True)
+
