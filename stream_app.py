@@ -12,9 +12,9 @@ from sqlalchemy.ext.declarative import declarative_base
 import pandas as pd
 from streamlit_server_state import server_state, server_state_lock
 from streamlit_utility import get_remote_ip
-
-user_ip = get_remote_ip()
-
+import streamlit_authenticator as stauth
+import yaml
+import extra_streamlit_components as stx
 
 st.set_page_config(page_title="Page Title", layout="wide")
 st.markdown("""
@@ -28,6 +28,16 @@ st.markdown("""
         #stDecoration {display:none;}
     </style>
 """, unsafe_allow_html=True)
+
+@st.cache_resource(experimental_allow_widgets=True)
+def get_manager():
+    return stx.CookieManager()
+
+cookie_manager = get_manager()
+
+with st.sidebar.columns(2)[1]:
+    if st.button("Logout", ):
+        cookie_manager.delete("username")
 
 # Create the database engine
 engine = create_engine('sqlite:///db.sqlite3')
@@ -45,26 +55,19 @@ class User(Base):
     fullname = Column(String)
 
 def form_username():
-    with server_state_lock.username_cache:
-        if "username_cache" not in server_state:
-            server_state.username_cache = {}
+    username = st.text_input("Enter your username")
+    if username:
+        st.session_state["username"] = username
+        print(f"username: {username}")
+        cookie_manager.set("username", username)
+        while cookie_manager.get("username") is None:
+            time.sleep(0.1)
 
-    with st.form("form_username"):
-        with server_state_lock.username_cache:
-            default_username = server_state.username_cache.get(user_ip, "")
-        username = st.text_input("Enter your username", value=default_username)
-        submitted = st.form_submit_button("Submit")
-        if submitted:
-            st.session_state["username"] = username
-            with server_state_lock.username_cache:
-                server_state.username_cache.update({user_ip : username})
-            st.rerun()
+username = cookie_manager.get("username")
 
-if "username" not in st.session_state:
+if username is None:
     form_username()
     exit()
-
-username = st.session_state["username"]
 
 fullnames = {
     "ponta": "ponta tanuki",
@@ -144,12 +147,15 @@ else:
     if btn_start:
         task.start()
 
-st.header("Action list")
+def on_change(x):
+    print(x)
+
+st.subheader("Action list")
 df = pd.DataFrame(task.actions, index=range(1, len(task.actions)+1))
 df.style.applymap(lambda x: "background-color: yellow" if x== username else "", subset=["assigned_user"])
-st.data_editor(df)
+df_new = st.data_editor(df, on_change=on_change, disabled=["assigned_user", "name", "status"], use_container_width=True)
 
-
+st.dataframe(df_new, use_container_width=True)
 
 # bt = st.button("Click me")
 # if bt:
