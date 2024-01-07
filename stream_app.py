@@ -18,7 +18,7 @@ from streamlit_utility import initialize_page, get_manager
 initialize_page() # must be at the top of every page
 
 cookie_manager = get_manager()
-username:str = cookie_manager["username"]
+username:str = cookie_manager.get("username")
 
 # Create the database engine
 engine = create_engine('sqlite:///db.sqlite3')
