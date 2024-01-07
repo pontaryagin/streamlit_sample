@@ -1,3 +1,4 @@
+from __future__ import annotations
 import dataclasses
 import enum
 from typing import Literal
@@ -10,6 +11,7 @@ from sqlalchemy import create_engine, Column, Integer, String
 from sqlalchemy.orm import sessionmaker, declarative_base
 import pandas as pd
 import numpy as np
+import graphviz
 
 from streamlit_utility import initialize_page, get_manager
 
@@ -51,6 +53,7 @@ Status = Literal["ToDo", "InProgress", "Done", "Skipped"]
 class ActionNode:
     assigned_user: str
     name : str
+    requirements: list[str]|None
     status: Status
     memo: str
 
@@ -87,17 +90,22 @@ class Workflow:
         action_next.status = "InProgress"
         # send message to self.actions[pro].assigned_user
         self.save()
-    
+
+    def to_dataframe(self):
+        df = pd.DataFrame(self.actions, index=range(1, len(self.actions)+1))
+        df["assigned_user"] = np.vectorize(format_fullname)(df["assigned_user"])
+        return df
+
     def finished(self):
         return all(action.status in ("Done", "Skipped") for action in self.actions)
 
 BASE_TASK = Workflow(actions=[
-    ActionNode(assigned_user="ponta2", name="test", status= "Done", memo=""),
-    ActionNode(assigned_user="ponta", name="test2", status= "InProgress", memo="start"),
-    ActionNode(assigned_user="ponta", name="test3", status= "ToDo", memo="start"),
+    ActionNode(assigned_user="ponta2", name="test", requirements=None, status= "Done", memo=""),
+    ActionNode(assigned_user="ponta", name="test2", requirements=["test"], status= "InProgress", memo="start"),
+    ActionNode(assigned_user="ponta", name="test3", requirements=["test"], status= "ToDo", memo="start"),
     ])
 
-def get_task():
+def get_task() -> Workflow:
     if "task" not in st.session_state:
         st.session_state["task"] = BASE_TASK
     return st.session_state["task"]
@@ -106,6 +114,8 @@ def check_diff_df(df_bef, df_aft)->list[dict]:
     diffs = []
     for i, (bef, aft) in enumerate(zip(df_bef.to_dict("records"), df_aft.to_dict("records"))):
         for key in bef.keys():
+            if key not in aft.keys():
+                continue
             if bef[key] != aft[key]:
                 diff = {"index": i+1, "key": key, "value": (bef[key], aft[key]),
                         "values_bef": bef, "values_aft": aft}
@@ -147,25 +157,22 @@ def st_action_form():
         if btn_start:
             task.start()
 
+STATUS_COLOR = {
+    "InProgress": "#FDF5E6", 
+    "Done": "#90EE90",
+    "Skipped": "#D3D3D3",
+    "ToDo": "#F0FFFF",
+}
+
 def st_action_list():
     task: Workflow = get_task()
     st.subheader("Action list")
-    df = pd.DataFrame(task.actions, index=range(1, len(task.actions)+1))
+    df = task.to_dataframe()
     def add_color(value):
-        if value == "InProgress":
-            return f"background-color: OldLace"
-        elif value == "Done":
-            return f"background-color: LightGreen"
-        elif value == "Skipped":
-            return f"background-color: LightGray"
-        elif value == "ToDo":
-            return f"background-color: Azure"
-        else:
-            return ""
-    df["assigned_user"] = np.vectorize(format_fullname)(df["assigned_user"])
+        return f"background-color: {STATUS_COLOR[value]}"
     df_styled = (df[["name", "status", "assigned_user", "memo"]]
                 .style
-                .map(add_color, subset=["status"], )
+                .map(add_color, subset=["status"])
                 )
     assigned_user_column_config = st.column_config.SelectboxColumn(
                 "Assigned User",
@@ -195,8 +202,22 @@ def st_action_list():
         if is_ok:
             st.session_state["task_diffs"] = diffs
 
+def st_action_graph():
+    task = get_task()
+    st.subheader("Flow chart")
+    graph = graphviz.Digraph()
+    graph.attr('node', shape='box', color='#888888')
+    graph.attr('edge', color='#888888')
+    for action in task.actions:
+        fillcolor = STATUS_COLOR[action.status]
+        graph.node(action.name, style='filled', fillcolor=fillcolor)
+        for req in (action.requirements or []):
+            graph.edge(req, action.name)
+    st.graphviz_chart(graph)
+
 def main():
     st_action_form()
     st_action_list()
+    st_action_graph()
 
 main()
