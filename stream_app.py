@@ -117,8 +117,7 @@ def check_diff_df(df_bef, df_aft)->list[dict]:
             if key not in aft.keys():
                 continue
             if bef[key] != aft[key]:
-                diff = {"index": i+1, "key": key, "value": (bef[key], aft[key]),
-                        "values_bef": bef, "values_aft": aft}
+                diff = {"index": i+1, "key": key, "value": (bef[key], aft[key])}
                 diffs.append(diff)
     return diffs
 
