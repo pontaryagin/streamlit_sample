@@ -142,13 +142,21 @@ def check_diff_df(df_bef, df_aft)->list[dict]:
     return diffs
 st.subheader("Action list")
 df = pd.DataFrame(task.actions, index=range(1, len(task.actions)+1))
-def add_color(val, condtion, color):
-    return f"background-color: {color}" if condtion(val) else ""
+def add_color(value):
+    if value == "InProgress":
+        return f"background-color: OldLace"
+    elif value == "Done":
+        return f"background-color: LightGreen"
+    elif value == "Skipped":
+        return f"background-color: LightGray"
+    elif value == "ToDo":
+        return f"background-color: Azure"
+    else:
+        return ""
 df["assigned_user"] = np.vectorize(format_fullname)(df["assigned_user"])
-# df["assigned_user"] = pd.Categorical(df["assigned_user"], categories=reverse_formated_fullnames.keys())
 df_styled = (df[["name", "status", "assigned_user", "memo"]]
-            .style.map(add_color, color="LightGray", subset=["status"], condtion=lambda x: x in ("Done", "Skipped"))
-            .map(add_color, color="PaleGreen", subset=["status"], condtion=lambda x: x == "InProgress")
+            .style
+            .map(add_color, subset=["status"], )
             )
 assigned_user_column_config = st.column_config.SelectboxColumn(
             "Assigned User",
@@ -159,7 +167,9 @@ column_config = {
     "assigned_user": assigned_user_column_config,
     "memo": st.column_config.Column("Memo",help="Memo for the task",),
 }
-df_new = st.data_editor(df_styled, disabled=["fullname", "name", "status"], column_config= column_config, use_container_width=True)
+df_new = st.data_editor(df_styled, disabled=["fullname", "name", "status"], 
+                        column_config= column_config, use_container_width=True,
+                        )
 
 diffs = check_diff_df(df, df_new)
 if diffs:

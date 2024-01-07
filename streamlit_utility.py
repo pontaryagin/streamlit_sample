@@ -35,17 +35,6 @@ def form_username():
 
 def initialize_page():
     st.set_page_config(page_title="Workflow generator", layout="wide", initial_sidebar_state="collapsed")
-    st.markdown("""
-        <style>
-            .reportview-container {
-                margin-top: -2em;
-            }
-            #MainMenu {visibility: hidden;}
-            .stDeployButton {display:none;}
-            footer {visibility: hidden;}
-            #stDecoration {display:none;}
-        </style>
-    """, unsafe_allow_html=True)
     with st.sidebar:
         if st.button("Logout"):
             cookie_manager = get_manager()
