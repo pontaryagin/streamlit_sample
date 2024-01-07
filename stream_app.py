@@ -35,15 +35,15 @@ class User(Base):
 
 
 def format_fullname(username):
-    fullname = fullnames[username]
+    fullname = USER_FULLNAMES[username]
     return f"{fullname} ({username})"
 
-fullnames = {
+USER_FULLNAMES = {
     "ponta": "ponta tanuki",
     "ponta2": "ponta2 tanuki",
 }
 
-reverse_formated_fullnames = {format_fullname(k): k for k, v in fullnames.items()}
+USER_REVERSE_FORMATTED_FULLNAMES = {format_fullname(k): k for k, v in USER_FULLNAMES.items()}
 
 Status = Literal["ToDo", "InProgress", "Done", "Skipped"]
 
@@ -87,45 +87,20 @@ class Workflow:
         action_next.status = "InProgress"
         # send message to self.actions[pro].assigned_user
         self.save()
+    
+    def finished(self):
+        return all(action.status in ("Done", "Skipped") for action in self.actions)
 
-base_task = Workflow(actions=[
+BASE_TASK = Workflow(actions=[
     ActionNode(assigned_user="ponta2", name="test", status= "Done", memo=""),
     ActionNode(assigned_user="ponta", name="test2", status= "InProgress", memo="start"),
     ActionNode(assigned_user="ponta", name="test3", status= "ToDo", memo="start"),
     ])
 
-if "task" not in st.session_state:
-    st.session_state["task"] = base_task
-
-task: Workflow = st.session_state["task"]
-
-action_in_progress = task.get_action_in_progress()
-text_area_memo = st.text_area("Memo", 
-                    value=action_in_progress.memo if action_in_progress else "")
-if action_in_progress:
-    if username == action_in_progress.assigned_user:
-        *_, col1, col2, col3 = st.columns(5)
-        with col1:
-            btn_done = st.button("Done")
-            if btn_done:
-                task.update_state("Done", text_area_memo)
-        with col2:
-            btn_skip = st.button("Skip")
-            if btn_skip:
-                task.update_state("Skipped", text_area_memo)
-        with col3:
-            btn_update = st.button("Update")
-            if btn_update and "task_diffs" in st.session_state:
-                diffs = st.session_state.pop("task_diffs")
-                for diff in diffs:
-                    value = diff["value"][1]
-                    if diff["key"] == "assigned_user":
-                        value = reverse_formated_fullnames[value]
-                    task.actions[diff["index"]-1].__setattr__(diff["key"], value)
-else:
-    btn_start = st.button("Start the task")
-    if btn_start:
-        task.start()
+def get_task():
+    if "task" not in st.session_state:
+        st.session_state["task"] = BASE_TASK
+    return st.session_state["task"]
 
 def check_diff_df(df_bef, df_aft)->list[dict]:
     diffs = []
@@ -136,48 +111,92 @@ def check_diff_df(df_bef, df_aft)->list[dict]:
                         "values_bef": bef, "values_aft": aft}
                 diffs.append(diff)
     return diffs
-st.subheader("Action list")
-df = pd.DataFrame(task.actions, index=range(1, len(task.actions)+1))
-def add_color(value):
-    if value == "InProgress":
-        return f"background-color: OldLace"
-    elif value == "Done":
-        return f"background-color: LightGreen"
-    elif value == "Skipped":
-        return f"background-color: LightGray"
-    elif value == "ToDo":
-        return f"background-color: Azure"
-    else:
-        return ""
-df["assigned_user"] = np.vectorize(format_fullname)(df["assigned_user"])
-df_styled = (df[["name", "status", "assigned_user", "memo"]]
-            .style
-            .map(add_color, subset=["status"], )
-            )
-assigned_user_column_config = st.column_config.SelectboxColumn(
-            "Assigned User",
-            help="Assigned user for the task",
-            options=reverse_formated_fullnames.keys(),
-            required=True,)
-column_config = {
-    "assigned_user": assigned_user_column_config,
-    "memo": st.column_config.Column("Memo",help="Memo for the task",),
-}
-df_new = st.data_editor(df_styled, disabled=["fullname", "name", "status"], 
-                        column_config= column_config, use_container_width=True,
-                        )
 
-diffs = check_diff_df(df, df_new)
-if diffs:
-    output = ("You're updating the following items.  \n"
-             +"Please press **Update** button if this is correct.\n")
-    is_ok = True
-    for diff in diffs:
-        if diff["key"] not in ("assigned_user", "memo"):
-            is_ok = False
-            ouput = "You only allow to update assigned_user or memo\n"
-            break
-        output += f"- [Line {diff['index']}] `{diff['key']}`: `{diff['value'][0]}`  ⇒  `{diff['value'][1]}`\n"
-    st.warning(output)
-    if is_ok:
-        st.session_state["task_diffs"] = diffs
+def st_action_form():
+    task: Workflow = get_task()
+    action_in_progress = task.get_action_in_progress()
+    if action_in_progress:
+        text_area_memo = st.text_area("Memo", 
+                            value=action_in_progress.memo if action_in_progress else "")
+        if username == action_in_progress.assigned_user:
+            *_, col1, col2, col3 = st.columns(5)
+            with col1:
+                btn_done = st.button("Done")
+                if btn_done:
+                    task.update_state("Done", text_area_memo)
+                    st.rerun()
+            with col2:
+                btn_skip = st.button("Skip")
+                if btn_skip:
+                    task.update_state("Skipped", text_area_memo)
+                    st.rerun()
+            with col3:
+                btn_update = st.button("Update")
+                if btn_update and "task_diffs" in st.session_state:
+                    diffs = st.session_state.pop("task_diffs")
+                    for diff in diffs:
+                        value = diff["value"][1]
+                        if diff["key"] == "assigned_user":
+                            value = USER_REVERSE_FORMATTED_FULLNAMES[value]
+                        task.actions[diff["index"]-1].__setattr__(diff["key"], value)
+                    st.rerun()
+    elif task.finished():
+        st.success("This task has been finished.")
+    else:
+        btn_start = st.button("Start the task")
+        if btn_start:
+            task.start()
+
+def st_action_list():
+    task: Workflow = get_task()
+    st.subheader("Action list")
+    df = pd.DataFrame(task.actions, index=range(1, len(task.actions)+1))
+    def add_color(value):
+        if value == "InProgress":
+            return f"background-color: OldLace"
+        elif value == "Done":
+            return f"background-color: LightGreen"
+        elif value == "Skipped":
+            return f"background-color: LightGray"
+        elif value == "ToDo":
+            return f"background-color: Azure"
+        else:
+            return ""
+    df["assigned_user"] = np.vectorize(format_fullname)(df["assigned_user"])
+    df_styled = (df[["name", "status", "assigned_user", "memo"]]
+                .style
+                .map(add_color, subset=["status"], )
+                )
+    assigned_user_column_config = st.column_config.SelectboxColumn(
+                "Assigned User",
+                help="Assigned user for the task",
+                options=USER_REVERSE_FORMATTED_FULLNAMES.keys(),
+                required=True,)
+    column_config = {
+        "assigned_user": assigned_user_column_config,
+        "memo": st.column_config.Column("Memo",help="Memo for the task",),
+    }
+    df_new = st.data_editor(df_styled, disabled=["fullname", "name", "status"], 
+                            column_config= column_config, use_container_width=True,
+                            )
+
+    diffs = check_diff_df(df, df_new)
+    if diffs:
+        output = ("You're updating the following items.  \n"
+                +"Please press **Update** button if this is correct.\n")
+        is_ok = True
+        for diff in diffs:
+            if diff["key"] not in ("assigned_user", "memo"):
+                is_ok = False
+                ouput = "You only allow to update assigned_user or memo\n"
+                break
+            output += f"- [Line {diff['index']}] `{diff['key']}`: `{diff['value'][0]}`  ⇒  `{diff['value'][1]}`\n"
+        st.warning(output)
+        if is_ok:
+            st.session_state["task_diffs"] = diffs
+
+def main():
+    st_action_form()
+    st_action_list()
+
+main()
