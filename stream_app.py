@@ -18,7 +18,7 @@ from streamlit_utility import initialize_page, get_manager
 initialize_page() # must be at the top of every page
 
 cookie_manager = get_manager()
-username:str = cookie_manager.get("username")
+username:str = cookie_manager["username"]
 
 # Create the database engine
 engine = create_engine('sqlite:///db.sqlite3')
@@ -100,9 +100,9 @@ class Workflow:
         return all(action.status in ("Done", "Skipped") for action in self.actions)
 
 BASE_TASK = Workflow(actions=[
-    ActionNode(assigned_user="ponta2", name="test", requirements=None, status= "Done", memo=""),
+    ActionNode(assigned_user="ponta2", name="test", requirements=[], status= "Done", memo=""),
     ActionNode(assigned_user="ponta", name="test2", requirements=["test"], status= "InProgress", memo="start"),
-    ActionNode(assigned_user="ponta", name="test3", requirements=["test"], status= "ToDo", memo="start"),
+    ActionNode(assigned_user="ponta", name="test3", requirements=["test", "test2"], status= "ToDo", memo="start"),
     ])
 
 def get_task() -> Workflow:
@@ -163,27 +163,39 @@ STATUS_COLOR = {
     "ToDo": "#F0FFFF",
 }
 
-def st_action_list():
-    task: Workflow = get_task()
-    st.subheader("Action list")
-    df = task.to_dataframe()
+def add_style_to_df(df:pd.DataFrame):
     def add_color(value):
         return f"background-color: {STATUS_COLOR[value]}"
-    df_styled = (df[["name", "status", "assigned_user", "memo"]]
+    df_styled = (df
                 .style
                 .map(add_color, subset=["status"])
                 )
+    return df_styled
+
+def get_column_config():
     assigned_user_column_config = st.column_config.SelectboxColumn(
                 "Assigned User",
                 help="Assigned user for the task",
                 options=USER_REVERSE_FORMATTED_FULLNAMES.keys(),
                 required=True,)
+    
     column_config = {
         "assigned_user": assigned_user_column_config,
         "memo": st.column_config.Column("Memo",help="Memo for the task",),
+        "requirements": st.column_config.ListColumn("Requirements", )
     }
-    df_new = st.data_editor(df_styled, disabled=["fullname", "name", "status"], 
-                            column_config= column_config, use_container_width=True,
+    return column_config
+
+def st_action_list():
+    task: Workflow = get_task()
+    st.subheader("Action list")
+    df = task.to_dataframe()
+    df_styled = add_style_to_df(df)
+
+    editable_cols = ["assigned_user", "memo", "requirements"]
+    disabled_cols = [col for col in df.columns if col not in editable_cols]
+    df_new = st.data_editor(df_styled, #disabled=disabled_cols, 
+                            column_config= get_column_config(), use_container_width=True,
                             )
 
     diffs = check_diff_df(df, df_new)
