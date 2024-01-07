@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "streamlit-workflow"
+version = "0.1.0"
+description = ""
+authors = ["pontaryagin <ponta1496@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+streamlit = "^1.29.0"
+streamlit-server-state = "^0.17.1"
+extra-streamlit-components = "^0.1.60"
+pandas = "^2.1.4"
+sqlalchemy = "^2.0.25"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
