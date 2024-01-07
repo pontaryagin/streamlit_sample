@@ -195,7 +195,7 @@ def st_action_list():
         for diff in diffs:
             if diff["key"] not in ("assigned_user", "memo"):
                 is_ok = False
-                ouput = "You only allow to update assigned_user or memo\n"
+                output = "You only allow to update assigned_user or memo\n"
                 break
             output += f"- [Line {diff['index']}] `{diff['key']}`: `{diff['value'][0]}`  ⇒  `{diff['value'][1]}`\n"
         st.warning(output)
