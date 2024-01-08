@@ -14,11 +14,11 @@ import numpy as np
 import graphviz
 from pydantic import BaseModel
 
-from streamlit_utility import initialize_page
+from streamlit_utility import initialize_page, get_username
 
 cookie_manager = initialize_page() # must be at the top of every page
 
-username:str = cookie_manager.get("username")
+username:str = get_username()
 
 # Create the database engine
 engine = create_engine('sqlite:///db.sqlite3')

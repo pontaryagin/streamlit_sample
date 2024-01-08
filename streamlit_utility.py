@@ -3,6 +3,7 @@ from streamlit import runtime
 from streamlit.runtime.scriptrunner import get_script_run_ctx
 import extra_streamlit_components as stx
 import time
+from threading import Lock
 
 def get_remote_ip() -> str|None:
     """Get remote ip."""
@@ -21,8 +22,12 @@ def get_remote_ip() -> str|None:
 
 def delete_cookie(cookie_manager, key):
     cookie_manager.delete(key)
-    while cookie_manager.get(key) is not None:  # somehow this is needed to make sure that cookie is deleted
+    i = 0
+    while cookie_manager.get(key) is not None and i != 100:  # somehow this is needed to make sure that cookie is deleted
         time.sleep(0.01)
+        i += 1
+    if i == 100:
+        st.error("Failed to delete cookie")
 
 def update_cookie(cookie_manager: stx.CookieManager, key, value):
     if cookie_manager.get(key) == value:
@@ -30,20 +35,33 @@ def update_cookie(cookie_manager: stx.CookieManager, key, value):
     if cookie_manager.get(key) is not None:
         delete_cookie(cookie_manager, key)
     cookie_manager.set(key, value)
-    while cookie_manager.get(key) != value:  # somehow this is needed to make sure that cookie is deleted
+    i = 0
+    while cookie_manager.get(key) != value and i != 100:  # somehow this is needed to make sure that cookie is deleted
         time.sleep(0.01)
+        i += 1
+    if i == 100:
+        st.error("Failed to update cookie")
 
 def get_cookie_manager():
     cookie_manager = stx.CookieManager()
     return cookie_manager
 
 def form_username(cookie_manager):
+    if st.session_state.get("username") is not None:
+        return
     username = cookie_manager.get("username")
     if username is None:
         username = st.text_input("Enter your username")
         if username:
             update_cookie(cookie_manager, "username", username)
-        exit()
+        st.stop()
+    st.session_state["username"] = username
+
+def get_username()->str:
+    if username := st.session_state.get("username"):
+        return username
+    st.error("Username not found")
+    st.stop()
 
 def initialize_page():
     st.set_page_config(page_title="Workflow generator", layout="wide", initial_sidebar_state="collapsed")
@@ -65,6 +83,8 @@ def initialize_page():
 
     with st.sidebar:
         if st.button("Logout"):
+            st.session_state.pop("username", None)
             delete_cookie(cookie_manager, "username")
+            st.rerun()
     form_username(cookie_manager)
     return cookie_manager
