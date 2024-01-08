@@ -19,6 +19,20 @@ def get_remote_ip() -> str|None:
         return None
     return session_info.request.remote_ip #type: ignore
 
+def delete_cookie(cookie_manager, key):
+    cookie_manager.delete(key)
+    while cookie_manager.get(key) is not None:  # somehow this is needed to make sure that cookie is deleted
+        time.sleep(0.01)
+
+def update_cookie(cookie_manager: stx.CookieManager, key, value):
+    if cookie_manager.get(key) == value:
+        return
+    if cookie_manager.get(key) is not None:
+        delete_cookie(cookie_manager, key)
+    cookie_manager.set(key, value)
+    while cookie_manager.get(key) != value:  # somehow this is needed to make sure that cookie is deleted
+        time.sleep(0.01)
+
 def get_cookie_manager():
     cookie_manager = stx.CookieManager()
     return cookie_manager
@@ -28,8 +42,7 @@ def form_username(cookie_manager):
     if username is None:
         username = st.text_input("Enter your username")
         if username:
-            cookie_manager.set("username", username)
-            cookie_manager.get_all()  # somehow this is needed to make the cookie deletion work
+            update_cookie(cookie_manager, "username", username)
         exit()
 
 def initialize_page():
@@ -52,7 +65,6 @@ def initialize_page():
 
     with st.sidebar:
         if st.button("Logout"):
-            cookie_manager.delete("username")
-            cookie_manager.get_all()  # somehow this is needed to make the cookie deletion work
+            delete_cookie(cookie_manager, "username")
     form_username(cookie_manager)
     return cookie_manager
