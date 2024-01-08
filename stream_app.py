@@ -89,10 +89,15 @@ class Workflow(BaseModel):
         self.save()
 
     def to_dataframe(self):
-        actions = [dict(action) for action in self.actions]
+        actions = [action.model_dump() for action in self.actions]
         df = pd.DataFrame(actions, index=range(1, len(self.actions)+1))
         df["assigned_user"] = np.vectorize(format_fullname)(df["assigned_user"])
         return df
+
+    @staticmethod
+    def from_dataframe(df):
+        records = df.to_dict("records")
+        return Workflow(actions = [ActionNode(**record) for record in records])
 
     def finished(self):
         return all(action.status in ("Done", "Skipped") for action in self.actions)
@@ -196,7 +201,6 @@ def st_action_list():
     df_new = st.data_editor(df_styled, disabled=disabled_cols, 
                             column_config= get_column_config(), use_container_width=True,
                             )
-
     diffs = check_diff_df(df, df_new)
     if diffs:
         output = ("You're updating the following items.  \n"
