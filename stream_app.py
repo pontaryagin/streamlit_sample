@@ -12,6 +12,7 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 import pandas as pd
 import numpy as np
 import graphviz
+from pydantic import BaseModel
 
 from streamlit_utility import initialize_page
 
@@ -29,11 +30,10 @@ session = sessionmaker(
 )
 
 # Define a sample table
-class User(Base):
-    __tablename__ = 'users'
-    name = Column(String, primary_key=True)
-    fullname = Column(String)
-
+class User(BaseModel):
+    username : str
+    first_name : str
+    last_name : str
 
 def format_fullname(username):
     fullname = USER_FULLNAMES[username]
@@ -48,16 +48,14 @@ USER_REVERSE_FORMATTED_FULLNAMES = {format_fullname(k): k for k, v in USER_FULLN
 
 Status = Literal["ToDo", "InProgress", "Done", "Skipped"]
 
-@dataclasses.dataclass
-class ActionNode:
+class ActionNode(BaseModel):
     assigned_user: str
     name : str
-    requirements: list[str]|None
+    requirements: list[str]
     status: Status
     memo: str
 
-@dataclasses.dataclass
-class Workflow:
+class Workflow(BaseModel):
     actions : list[ActionNode]
 
     def save(self):
@@ -91,7 +89,8 @@ class Workflow:
         self.save()
 
     def to_dataframe(self):
-        df = pd.DataFrame(self.actions, index=range(1, len(self.actions)+1))
+        actions = [dict(action) for action in self.actions]
+        df = pd.DataFrame(actions, index=range(1, len(self.actions)+1))
         df["assigned_user"] = np.vectorize(format_fullname)(df["assigned_user"])
         return df
 
