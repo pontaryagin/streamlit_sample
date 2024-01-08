@@ -19,25 +19,40 @@ def get_remote_ip() -> str|None:
         return None
     return session_info.request.remote_ip #type: ignore
 
+def get_cookie_manager():
+    cookie_manager = stx.CookieManager()
+    return cookie_manager
 
-@st.cache_resource(experimental_allow_widgets=True)
-def get_manager():
-    return stx.CookieManager()
-
-def form_username():
-    cookie_manager = get_manager()
+def form_username(cookie_manager):
     username = cookie_manager.get("username")
     if username is None:
         username = st.text_input("Enter your username")
         if username:
             cookie_manager.set("username", username)
+            cookie_manager.get_all()  # somehow this is needed to make the cookie deletion work
         exit()
 
 def initialize_page():
     st.set_page_config(page_title="Workflow generator", layout="wide", initial_sidebar_state="collapsed")
+    cookie_manager = get_cookie_manager()
+
+    # adjust page style
+    margin_top = -5
+    st.markdown(
+        f"""
+            <style>
+                .appview-container .main .block-container {{
+                    margin-top: {margin_top}rem;
+                    }}
+
+            </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
     with st.sidebar:
         if st.button("Logout"):
-            cookie_manager = get_manager()
             cookie_manager.delete("username")
             cookie_manager.get_all()  # somehow this is needed to make the cookie deletion work
-    form_username()
+    form_username(cookie_manager)
+    return cookie_manager

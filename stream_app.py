@@ -13,11 +13,10 @@ import pandas as pd
 import numpy as np
 import graphviz
 
-from streamlit_utility import initialize_page, get_manager
+from streamlit_utility import initialize_page
 
-initialize_page() # must be at the top of every page
+cookie_manager = initialize_page() # must be at the top of every page
 
-cookie_manager = get_manager()
 username:str = cookie_manager.get("username")
 
 # Create the database engine
