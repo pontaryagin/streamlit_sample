@@ -124,9 +124,9 @@ def st_action_form():
     task: Workflow = get_task()
     action_in_progress = task.get_action_in_progress()
     if action_in_progress:
-        text_area_memo = st.text_area("Memo", 
-                            value=action_in_progress.memo if action_in_progress else "")
         if username == action_in_progress.assigned_user:
+            text_area_memo = st.text_area("Memo", 
+                                value=action_in_progress.memo if action_in_progress else "")
             *_, col1, col2, col3 = st.columns(5)
             with col1:
                 btn_done = st.button("Done")
@@ -193,7 +193,7 @@ def st_action_list():
 
     editable_cols = ["assigned_user", "memo", "requirements"]
     disabled_cols = [col for col in df.columns if col not in editable_cols]
-    df_new = st.data_editor(df_styled, #disabled=disabled_cols, 
+    df_new = st.data_editor(df_styled, disabled=disabled_cols, 
                             column_config= get_column_config(), use_container_width=True,
                             )
 
