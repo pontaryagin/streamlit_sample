@@ -11,7 +11,7 @@
             "module": "streamlit",
             "args": [
                 "run",
-                "${workspaceFolder}/stream_app.py"
+                "${workspaceFolder}/app.py"
             ],
             "justMyCode": true
         }
