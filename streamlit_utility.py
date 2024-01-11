@@ -88,3 +88,8 @@ def initialize_page():
             st.rerun()
     form_username(cookie_manager)
     return cookie_manager
+
+USER_FULLNAMES = {
+    "ponta": "ponta tanuki",
+    "ponta2": "ponta2 tanuki",
+}

@@ -14,7 +14,7 @@ import numpy as np
 import graphviz
 from pydantic import BaseModel
 
-from streamlit_utility import initialize_page, get_username
+from streamlit_utility import USER_FULLNAMES, initialize_page, get_username
 
 cookie_manager = initialize_page() # must be at the top of every page
 
@@ -39,10 +39,6 @@ def format_fullname(username):
     fullname = USER_FULLNAMES[username]
     return f"{fullname} ({username})"
 
-USER_FULLNAMES = {
-    "ponta": "ponta tanuki",
-    "ponta2": "ponta2 tanuki",
-}
 
 USER_REVERSE_FORMATTED_FULLNAMES = {format_fullname(k): k for k, v in USER_FULLNAMES.items()}
 

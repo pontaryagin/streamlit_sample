@@ -1,6 +1,5 @@
 import streamlit as st
-from stream_app import USER_FULLNAMES
-from streamlit_utility import initialize_page
+from streamlit_utility import initialize_page, USER_FULLNAMES
 
 
 cookie_manager = initialize_page()  # must be at the top of every page
