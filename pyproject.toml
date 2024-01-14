@@ -15,6 +15,7 @@ sqlalchemy = "^2.0.25"
 graphviz = "^0.20.1"
 pydantic = "^2.5.3"
 sqlmodel = "^0.0.14"
+alembic = "^1.13.1"
 
 
 [build-system]
