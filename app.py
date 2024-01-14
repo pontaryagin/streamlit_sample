@@ -13,6 +13,11 @@ import pandas as pd
 import numpy as np
 import graphviz
 from pydantic import BaseModel
+from sqlmodel import Field, SQLModel
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 from streamlit_utility import USER_FULLNAMES, initialize_page, get_username
 
@@ -21,6 +26,7 @@ cookie_manager = initialize_page() # must be at the top of every page
 username:str = get_username()
 
 # Create the database engine
+DATABASE_URL=f"""postgresql://{os.environ["DB_USERNAME"]}:{os.environ["DB_PASSWORD"]}@localhost:{os.environ["DB_PORT"]}/{os.environ["DB_NAME"]}"""
 engine = create_engine('sqlite:///db.sqlite3')
 Base = declarative_base()
 session = sessionmaker(
@@ -29,11 +35,10 @@ session = sessionmaker(
   bind = engine
 )
 
-# Define a sample table
-class User(BaseModel):
-    username : str
-    first_name : str
-    last_name : str
+class User(SQLModel, table=True):
+    username : str = Field(default=None, primary_key=True)
+    first_name : str|None
+    last_name : str|None
 
 def format_fullname(username):
     fullname = USER_FULLNAMES[username]

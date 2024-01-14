@@ -1,0 +1,34 @@
+version: '3'
+services:
+  # postgres-init:
+  #   image: postgres:14
+  #   volumes:
+  #     - "postgres_data:/data"
+  #   entrypoint:
+  #     - sh
+  #     - -c
+  #     - |
+  #       chown -R 1000:1000 /data
+
+  db:
+    # depends_on:
+    #   postgres-init:
+    #     condition: service_completed_successfully
+
+    image: postgres:14
+    container_name: postgres_host
+    ports:
+      - '${DB_PORT}:5432'
+    volumes:
+      - type: bind
+        source: ./db-data
+        target: /var/lib/postgresql/data
+    # volumes:
+    #   - db-data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_USER=${DB_USERNAME}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    user: ${UID:?Please export UID}
+# volumes:
+#   db-data:
