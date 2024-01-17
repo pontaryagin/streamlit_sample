@@ -18,11 +18,9 @@ if config.config_file_name is not None:
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
-from main import Hero
+from model import *
 
-target_metadata = [
-    Hero.metadata,
-]
+target_metadata = SQLModel.metadata
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
@@ -67,13 +65,9 @@ def run_migrations_online() -> None:
         poolclass=pool.NullPool,
     )
 
-    url = config.get_main_option("sqlalchemy.url")
     with connectable.connect() as connection:
         context.configure(
-            url=url,
-            connection=connection,
-            target_metadata=target_metadata,
-            render_as_batch=True
+            connection=connection, target_metadata=target_metadata
         )
 
         with context.begin_transaction():

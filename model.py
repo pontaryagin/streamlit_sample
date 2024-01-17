@@ -31,20 +31,20 @@ class Status(enum.Enum):
 
 class ActionLink(SQLModel, table=True):
     parent_id: Optional[int] = Field(
-        default=None, foreign_key="actionnode.id", primary_key=True
+        default=None, foreign_key="ActionNode.id".lower(), primary_key=True
     )
     child_id: Optional[int] = Field(
-        default=None, foreign_key="actionnode.id", primary_key=True
+        default=None, foreign_key="ActionNode.id".lower(), primary_key=True
     )
 class ActionNode(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    assigned_user_id: Optional[str] = Field(default=None, foreign_key="user.id")
+    assigned_user_id: Optional[str] = Field(default=None, foreign_key="User.id".lower())
     assigned_user: User = Relationship(back_populates="assigned_actions")
     name : str
     status: Status
     memo: str
-    workflow_id: Optional[int] = Field(default=None, foreign_key="workflow.id")
-    workflow: Optional["Workflow"] = Relationship(back_populates="actions")
+    workflow_id: Optional[int] = Field(default=None, foreign_key="Workflow.id".lower())
+    workflow: Optional["Workflow"] = Relationship(back_populates="actions".lower())
     parents: list["ActionNode"] = Relationship(
         back_populates="children",
         link_model=ActionLink,
@@ -79,11 +79,10 @@ def test():
     if len(argv) > 1 and argv[1] == "dev":
         ECHO_DB = True
 
-
     # Create the database engine
     load_dotenv()
-    # DATABASE_URL=f"""postgresql://{os.environ["DB_USERNAME"]}:{os.environ["DB_PASSWORD"]}@localhost:{os.environ["DB_PORT"]}/{os.environ["DB_NAME"]}"""
     DATABASE_URL="sqlite:///:memory:"
+    # DATABASE_URL=f"""postgresql://{os.environ["DB_USERNAME"]}:{os.environ["DB_PASSWORD"]}@localhost:{os.environ["DB_PORT"]}/{os.environ["DB_NAME"]}"""
     engine = create_engine(DATABASE_URL, echo=ECHO_DB)
     session = sessionmaker(
     autocommit = False,
@@ -119,4 +118,7 @@ def test():
         assert len(node.children) == 2
         assert len(node2.children) == 1
         assert len(node3.children) == 0
+        session.commit()
 
+if __name__ == "__main__":
+    test()

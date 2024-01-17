@@ -19,16 +19,16 @@ services:
     container_name: postgres_host
     ports:
       - '${DB_PORT}:5432'
-    volumes:
-      - type: bind
-        source: ./db-data
-        target: /var/lib/postgresql/data
     # volumes:
-    #   - db-data:/var/lib/postgresql/data
+    #   - type: bind
+    #     source: ./db-data
+    #     target: /var/lib/postgresql/data
+    # user: ${UID:?Please export UID}
+    volumes:
+      - db-data:/var/lib/postgresql/data
     environment:
       - POSTGRES_DB=${DB_NAME}
       - POSTGRES_USER=${DB_USERNAME}
       - POSTGRES_PASSWORD=${DB_PASSWORD}
-    user: ${UID:?Please export UID}
-# volumes:
-#   db-data:
+volumes:
+  db-data:
