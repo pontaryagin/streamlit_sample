@@ -3,42 +3,14 @@ import dataclasses
 import enum
 from typing import Literal
 import streamlit as st
-import time
-import asyncio
-import numpy as npm
-
-from sqlalchemy import create_engine, Column, Integer, String
-from sqlalchemy.orm import sessionmaker, declarative_base
 import pandas as pd
 import numpy as np
 import graphviz
-from pydantic import BaseModel
-from sqlmodel import Field, SQLModel
-import os
-from dotenv import load_dotenv
-
-load_dotenv()
-
 from streamlit_utility import USER_FULLNAMES, initialize_page, get_username
 
 cookie_manager = initialize_page() # must be at the top of every page
 
 username:str = get_username()
-
-# Create the database engine
-DATABASE_URL=f"""postgresql://{os.environ["DB_USERNAME"]}:{os.environ["DB_PASSWORD"]}@localhost:{os.environ["DB_PORT"]}/{os.environ["DB_NAME"]}"""
-engine = create_engine('sqlite:///db.sqlite3')
-Base = declarative_base()
-session = sessionmaker(
-  autocommit = False,
-  autoflush = True,
-  bind = engine
-)
-
-class User(SQLModel, table=True):
-    username : str = Field(default=None, primary_key=True)
-    first_name : str|None
-    last_name : str|None
 
 def format_fullname(username):
     fullname = USER_FULLNAMES[username]
@@ -47,61 +19,49 @@ def format_fullname(username):
 
 USER_REVERSE_FORMATTED_FULLNAMES = {format_fullname(k): k for k, v in USER_FULLNAMES.items()}
 
-Status = Literal["ToDo", "InProgress", "Done", "Skipped"]
+def save_to_session(wf: Workflow):
+    st.session_state["task"] = wf
 
-class ActionNode(BaseModel):
-    assigned_user: str
-    name : str
-    requirements: list[str]
-    status: Status
-    memo: str
+def start(self):
+    action_in_progress = self.get_action_in_progress()
+    assert action_in_progress is None
+    self.actions[0].status = "InProgress"
+    self.save()
 
-class Workflow(BaseModel):
-    actions : list[ActionNode]
+def get_action_in_progress(self):
+    for action in self.actions:
+        if action.status == "InProgress":
+            return action
+    return None
 
-    def save(self):
-        st.session_state["task"] = self
-
-    def start(self):
-        action_in_progress = self.get_action_in_progress()
-        assert action_in_progress is None
-        self.actions[0].status = "InProgress"
+def update_state(self, status: Literal["Done", "Skipped"], memo: str):
+    action_in_progress = self.get_action_in_progress()
+    if action_in_progress is None:
+        return
+    action_in_progress.status = status
+    action_in_progress.memo = memo
+    progress_pos = self.actions.index(action_in_progress)
+    if progress_pos == len(self.actions) - 1:
         self.save()
+        return
+    action_next = self.actions[progress_pos+1]
+    action_next.status = "InProgress"
+    # send message to self.actions[pro].assigned_user
+    self.save()
 
-    def get_action_in_progress(self):
-        for action in self.actions:
-            if action.status == "InProgress":
-                return action
-        return None
+def to_dataframe(self):
+    actions = [action.model_dump() for action in self.actions]
+    df = pd.DataFrame(actions, index=range(1, len(self.actions)+1))
+    df["assigned_user"] = np.vectorize(format_fullname)(df["assigned_user"])
+    return df
 
-    def update_state(self, status: Literal["Done", "Skipped"], memo: str):
-        action_in_progress = self.get_action_in_progress()
-        if action_in_progress is None:
-            return
-        action_in_progress.status = status
-        action_in_progress.memo = memo
-        progress_pos = self.actions.index(action_in_progress)
-        if progress_pos == len(self.actions) - 1:
-            self.save()
-            return
-        action_next = self.actions[progress_pos+1]
-        action_next.status = "InProgress"
-        # send message to self.actions[pro].assigned_user
-        self.save()
+@staticmethod
+def from_dataframe(df):
+    records = df.to_dict("records")
+    return Workflow(actions = [ActionNode(**record) for record in records])
 
-    def to_dataframe(self):
-        actions = [action.model_dump() for action in self.actions]
-        df = pd.DataFrame(actions, index=range(1, len(self.actions)+1))
-        df["assigned_user"] = np.vectorize(format_fullname)(df["assigned_user"])
-        return df
-
-    @staticmethod
-    def from_dataframe(df):
-        records = df.to_dict("records")
-        return Workflow(actions = [ActionNode(**record) for record in records])
-
-    def finished(self):
-        return all(action.status in ("Done", "Skipped") for action in self.actions)
+def finished(self):
+    return all(action.status in ("Done", "Skipped") for action in self.actions)
 
 BASE_TASK = Workflow(actions=[
     ActionNode(assigned_user="ponta2", name="test", requirements=[], status= "Done", memo=""),
